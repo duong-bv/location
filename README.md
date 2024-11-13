@@ -85,16 +85,38 @@ The Location Management API is a RESTful service built using Node.js and NestJS,
 The database schema includes a `Location` table structured as follows:
 
 ```sql
-CREATE TABLE Location (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  area VARCHAR(50),
-  parent_id UUID REFERENCES Location(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+CREATE TABLE public.building (
+	id serial4 NOT NULL,
+	"name" varchar(255) NOT NULL,
+	address varchar(255) NULL,
+	CONSTRAINT buildings_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public."location" (
+	id uuid NOT NULL DEFAULT gen_random_uuid(),
+	"name" varchar(255) NOT NULL,
+	"number" varchar(50) NOT NULL,
+	area int8 NOT NULL,
+	parent_id uuid NULL,
+	building_id int8 NOT NULL,
+	CONSTRAINT locations_name_key UNIQUE (name),
+	CONSTRAINT locations_pkey PRIMARY KEY (id),
+	CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES public."location"(id),
+	CONSTRAINT location_fk FOREIGN KEY (building_id) REFERENCES public.building(id)
 );
 ```
 **API Endpoints**
+**Building Enpounts**
+1. **GET /building**
+   - Fetches all building.
+   - **Response**: Array of building objects.
+   - **Swagger Annotation**: `@ApiOperation`, `@ApiResponse`
+3. **POST /building**
+   - Creates a new building.
+   - **Request Body**: JSON object with `name`, `address`
+   - **Response**: Created building object.
+   - **Swagger Annotation**: `@ApiBody`, `@ApiResponse`
+**Location**
 1. **GET /locations**
    - Fetches all locations.
    - **Response**: Array of location objects.
