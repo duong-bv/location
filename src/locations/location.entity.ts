@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Building } from 'src/building/building.entity';
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany } from 'typeorm';
 
 @Entity()
@@ -24,4 +25,7 @@ export class Location {
 
   @OneToMany(() => Location, (location) => location.parent)
   children: Location[];
+
+   @ManyToOne(() => Building, (building) => building.locations)
+   building: Building;
 }

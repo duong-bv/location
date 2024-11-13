@@ -18,4 +18,8 @@ export class LocationDto {
   @ApiProperty({ description: 'Parent location ID', required: false })
   @IsUUID()
   parentId?: string;
+
+  @ApiProperty({ description: 'Building ID' })
+  @IsNumber()
+  buildingId?: number;
 }

@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { LocationsModule } from './locations/locations.module';
+import { BuildingModule } from './building/building.module';
 
 
 @Module({
@@ -28,6 +29,7 @@ import { LocationsModule } from './locations/locations.module';
         } as TypeOrmModuleOptions),
     }),
     LocationsModule,
+    BuildingModule,
   ],
   controllers: [AppController],
   providers: [],

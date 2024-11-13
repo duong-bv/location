@@ -1,5 +1,6 @@
 import { Injectable, Logger, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Building } from 'src/building/building.entity';
 import { Repository, QueryRunner, DataSource } from 'typeorm';
 import { LocationDto } from './dto/LocationDto';
 import { Location } from './location.entity';
@@ -17,7 +18,7 @@ export class LocationsService {
     this.logger.log('Fetching all locations');
     try {
       const locations = await this.locationRepository.find({
-        relations: ['parent', 'children'],
+        relations: ['parent', 'children', 'building'],
       });
       this.logger.log(`Fetched ${locations.length} locations`);
       return locations;
@@ -32,7 +33,7 @@ export class LocationsService {
     try {
       const location = await this.locationRepository.findOne({
         where: { id },
-        relations: ['parent', 'children'], // Adjust relations as needed
+        relations: ['parent', 'children', 'building'], // Adjust relations as needed
       });
 
       if (!location) {
@@ -59,21 +60,42 @@ export class LocationsService {
     await queryRunner.startTransaction();
 
     try {
+      // Find the buidling if `buildingId` is provided
+      let building: Building | null = null;
+      if (locationData.buildingId) {
+        building = await queryRunner.manager.findOne(Building, {
+          where: { id: locationData.buildingId },
+        });
+
+        if (!building) {
+          throw new NotFoundException(`Building with ID ${locationData.buildingId} not found`);
+        }
+
+        this.logger.log(`Found building with ID: ${building.id}`);
+      }
       // Find the parent location if `parentId` is provided
       let parentLocation: Location | null = null;
       if (locationData.parentId) {
         parentLocation = await queryRunner.manager.findOne(Location, {
           where: { id: locationData.parentId },
+          relations: ['building']
+        });
+
+        // If there is parentId then parent's building is child's building
+        building = await queryRunner.manager.findOne(Building, {
+          where: { id: parentLocation.building.id },
         });
         
         if (!parentLocation) {
           throw new Error('Parent location not found');
         }
       }
+
       // Create a new location and save it using the query runner
       const newLocation = queryRunner.manager.create(Location, {
         ...locationData,
         parent: parentLocation,
+        building,
       });
       await queryRunner.manager.save(Location, newLocation);
 
@@ -81,6 +103,7 @@ export class LocationsService {
       await queryRunner.commitTransaction();
       return newLocation;
     } catch (error) {
+      this.logger.error(error)
       // Rollback the transaction on error
       await queryRunner.rollbackTransaction();
       throw new InternalServerErrorException('Failed to create location, transaction rolled back');
@@ -107,6 +130,22 @@ export class LocationsService {
       if (!locationToUpdate) {
         throw new NotFoundException('Location not found');
       }
+
+      // Find the buidling if `buildingId` is provided
+      let building: Building | null = null;
+      if (updateData.buildingId) {
+        building = await queryRunner.manager.findOne(Building, {
+          where: { id: updateData.buildingId },
+        });
+
+        if (!building) {
+          throw new NotFoundException(`Building with ID ${updateData.buildingId} not found`);
+        }
+
+        locationToUpdate.building = building;
+
+        this.logger.log(`Found building with ID: ${building.id}`);
+      }
   
       // If `parentId` is provided, find and set the parent entity
       if (updateData.parentId) {
@@ -126,6 +165,10 @@ export class LocationsService {
   
       // Save changes
       const updatedLocation = await queryRunner.manager.save(Location, locationToUpdate);
+
+      if (updateData.buildingId) {
+        await this.updateChildLocations(queryRunner, id, updateData.buildingId);
+      }
       await queryRunner.commitTransaction();
       return updatedLocation;
     } catch (error) {
@@ -175,4 +218,24 @@ export class LocationsService {
       await queryRunner.release();
     }
   }
+
+  private async updateChildLocations(queryRunner: QueryRunner, parentId: string, newBuildingId: number): Promise<void> {
+    // Find all direct child locations of the current location using parentId
+    const children = await queryRunner.manager.find(Location, {
+      where: { parent: { id: parentId } }, // Find locations whose parentId matches
+    });
+  
+    // Update the buildingId for the direct child locations
+    if (children.length > 0) {
+      // Update buildingId for all child locations
+      await queryRunner.manager.update(Location, { parent: { id: parentId } }, { building: { id: newBuildingId } });
+  
+      // Recursively update the child locations of each child (if any)
+      for (const child of children) {
+        await this.updateChildLocations(queryRunner, child.id, newBuildingId);
+      }
+    }
+  }
+  
+
 }
