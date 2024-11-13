@@ -94,7 +94,6 @@ CREATE TABLE Location (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 ```
-
 **API Endpoints**
 1. **GET /locations**
    - Fetches all locations.
@@ -140,5 +139,8 @@ All incoming requests are validated using `class-validator` decorators to ensure
 
 **Conclusion**
 The Location Management API is a robust, scalable solution built with best practices for clean code, comprehensive documentation, and efficient error handling. It is designed to support hierarchical data structures and can be extended easily to accommodate additional features.
+
+## Deployment
+Link API: http://54.179.179.83/api
 
 
