@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Building } from 'src/building/building.entity';
 import { Repository, QueryRunner, DataSource } from 'typeorm';
@@ -151,12 +151,17 @@ export class LocationsService {
       if (updateData.parentId) {
         const parentLocation = await queryRunner.manager.findOne(Location, {
           where: { id: updateData.parentId },
+          relations: ['parent'], // Ensure parent relations are loaded
         });
-  
+      
         if (!parentLocation) {
           throw new NotFoundException('Parent location not found');
         }
-  
+      
+        // Check for circular dependency
+        await this.validateParentRelationship(queryRunner, parentLocation, id);
+      
+        // Update parent
         locationToUpdate.parent = parentLocation;
       }
   
@@ -233,6 +238,34 @@ export class LocationsService {
       // Recursively update the child locations of each child (if any)
       for (const child of children) {
         await this.updateChildLocations(queryRunner, child.id, newBuildingId);
+      }
+    }
+  }
+
+  private async validateParentRelationship(
+    queryRunner: QueryRunner,
+    parentLocation: Location,
+    id: string,
+  ): Promise<void> {
+    let currentParent = parentLocation;
+  
+    while (currentParent) {
+      console.log(currentParent.id)
+      // if currentParent.id matches the current id => Loop detected.
+      if (currentParent.id === id) {
+        throw new BadRequestException(
+          'Circular dependency detected: cannot set a parent that creates a loop',
+        );
+      }
+  
+      // Load the next parent
+      if (currentParent.parent) {
+        currentParent = await queryRunner.manager.findOne(Location, {
+          where: { id: currentParent.parent?.id },
+          relations: ['parent'],
+        });
+      } else {
+        currentParent = null
       }
     }
   }

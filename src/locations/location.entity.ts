@@ -12,9 +12,10 @@ export class Location {
   @ApiProperty({ description: 'Location Name of the location' })
   name: string;
 
-  @Column()
-  @ApiProperty({ description: 'Location Number of the location' })
-  number: string;
+  // unique
+  @Column({ unique: true })
+  @ApiProperty({ description: 'Unique Location Number of the location' })
+  number: string; 
 
   @Column()
   @ApiProperty({ description: 'Area of the location', example: '80.620 m²' })
